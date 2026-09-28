@@ -1,5 +1,12 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0d6b5f"><style>[hidden]{display:none!important}</style></head><body>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d6b5f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px)}</style>
+</head><body>
 <title>Tap Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Manrope:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap">
@@ -24,11 +31,11 @@ body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 button{font:inherit;color:inherit}
 button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-header.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 8px}
 .monthnav{display:flex;align-items:center;gap:4px}
 .monthnav button{background:none;border:1px solid var(--line);border-radius:10px;width:36px;height:36px;cursor:pointer;font-size:18px}
 .monthnav button:disabled{opacity:.35;cursor:default}
-h1{font-family:var(--display);font-weight:800;font-size:26px;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1{font-family:var(--display);font-weight:800;font-size:20px;white-space:nowrap;margin:0;letter-spacing:-.01em;text-wrap:balance}
 .sync{font-size:12px;color:var(--muted)}
 .hero{background:var(--card);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;border:1px solid var(--line)}
 .hero .label{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
@@ -92,15 +99,15 @@ h2{font-family:var(--display);font-weight:600;font-size:17px;margin:0 0 -6px}
 <div class="wrap">
   <header class="top">
     <div class="monthnav">
-      <button id="prevM" aria-label="Previous month">‹</button>
-      <h1 id="monthTitle">This month</h1>
-      <button id="nextM" aria-label="Next month">›</button>
+      <button id="prevM" aria-label="Previous 4 weeks">‹</button>
+      <h1 id="monthTitle">Sep 28 – Oct 25</h1>
+      <button id="nextM" aria-label="Next 4 weeks">›</button>
     </div>
     <span class="sync" id="sync">Loading…</span>
   </header>
 
   <section class="hero" aria-live="polite">
-    <span class="label">Left on your Visa budget</span>
+    <span class="label">Left in this 4-week budget</span>
     <span class="big num" id="left">$0</span>
     <div class="bar" id="totalBar"><i style="width:0"></i></div>
     <span class="sub" id="totalSub">$0 of $0 spent</span>
@@ -125,6 +132,7 @@ h2{font-family:var(--display);font-weight:600;font-size:17px;margin:0 0 -6px}
 
   <div class="foot">
     <button class="linkbtn" id="editBudgets">Edit budgets</button>
+    <button class="linkbtn" id="exportCsv" hidden>Export backup (CSV)</button>
     <span class="sync" id="fixedNote">Rent, utilities, loan and bank fee are paid from chequing and not tracked here.</span>
   </div>
 </div>
@@ -135,7 +143,7 @@ h2{font-family:var(--display);font-weight:600;font-size:17px;margin:0 0 -6px}
     <label class="amtbox"><span>$</span><input id="amt" type="text" inputmode="decimal" placeholder="0.00" aria-label="Amount"></label>
     <div class="chips" id="chips"></div>
     <label class="field">Note (optional)<input id="note" type="text" maxlength="80" placeholder="e.g. McDonald's"></label>
-    <label class="field">Date<input id="date" type="date"></label>
+    <label class="field">Date<input id="date" type="date" min="2026-09-28"></label>
     <div class="actions">
       <button type="button" class="secondary" id="cancelLog">Cancel</button>
       <button type="submit" class="primary" id="saveLog" disabled>Log it</button>
@@ -145,8 +153,8 @@ h2{font-family:var(--display);font-weight:600;font-size:17px;margin:0 0 -6px}
 
 <div class="scrim" id="budScrim" hidden>
   <form class="sheet" id="budForm">
-    <h3>Monthly budgets</h3>
-    <p class="hint">Amounts for things you put on your Visa each month.</p>
+    <h3>4-week budgets</h3>
+    <p class="hint">Amounts for things you put on your Visa in each 4-week cycle.</p>
     <div class="budgets" id="budFields"></div>
     <label class="field">Eating-out allowance per week<input id="weekly" type="text" inputmode="decimal"></label>
     <div class="actions">
@@ -161,21 +169,25 @@ h2{font-family:var(--display);font-weight:600;font-size:17px;margin:0 0 -6px}
 <script>
 (function(){
 const CATS=[
- {id:"eat",name:"Eating out",budget:325,chips:[[10,"Quick bite"],[15,"Takeout"],[25,""],[45,"Sit-down"]]},
- {id:"groc",name:"Groceries",budget:400,chips:[[20,""],[50,""],[80,""],[120,"Big shop"]]},
- {id:"vend",name:"Vending machine",budget:30,chips:[[4.5,"Monster"],[3.5,"Coke"],[5,""]]},
- {id:"gas",name:"Gas, parking & transit",budget:150,chips:[[3,"Parking"],[50,"Gas"],[60,"Gas"]]},
- {id:"shop",name:"Shopping & household",budget:125,chips:[[10,""],[25,""],[50,""]]},
- {id:"fun",name:"Fun & events",budget:75,chips:[[15,"Movie"],[25,""],[40,""]]},
+ {id:"eat",name:"Eating out",budget:300,chips:[[10,"Quick bite"],[15,"Takeout"],[25,""],[45,"Sit-down"]]},
+ {id:"groc",name:"Groceries",budget:370,chips:[[20,""],[50,""],[80,""],[120,"Big shop"]]},
+ {id:"vend",name:"Vending machine",budget:28,chips:[[4.5,"Monster"],[3.5,"Coke"],[5,""]]},
+ {id:"gas",name:"Gas, parking & transit",budget:140,chips:[[3,"Parking"],[50,"Gas"],[60,"Gas"]]},
+ {id:"shop",name:"Shopping & household",budget:115,chips:[[10,""],[25,""],[50,""]]},
+ {id:"fun",name:"Fun & events",budget:70,chips:[[15,"Movie"],[25,""],[40,""]]},
  {id:"subs",name:"Claude & subscriptions",budget:60,chips:[[31.36,"Claude"],[10,""]]},
- {id:"vape",name:"Vape",budget:55,chips:[[27,""],[54,""]]},
+ {id:"vape",name:"Vape",budget:50,chips:[[27,""],[54,""]]},
  {id:"drug",name:"Drugstore & personal",budget:30,chips:[[10,""],[20,""]]},
  {id:"ther",name:"Therapy",budget:620,chips:[[155,"Session"]]},
  {id:"phone",name:"Phone",budget:33.6,chips:[[33.6,"Public Mobile"]]},
  {id:"other",name:"Other",budget:0,chips:[[10,""],[25,""],[50,""]]}
 ];
 let budgets=Object.fromEntries(CATS.map(c=>[c.id,c.budget])); let weekly=75;
-let items=[]; let store=null; let viewMonth=monthKey(new Date());
+let items=[]; let store=null; const START=new Date(2026,8,28);
+function dayNum(d){return Math.round(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5)}
+function periodOf(d){return Math.floor((dayNum(d)-dayNum(START))/28)}
+function pStart(p){const x=new Date(START);x.setDate(x.getDate()+28*p);return x}
+let viewMonth=periodOf(new Date());
 const $=id=>document.getElementById(id);
 const fmt=n=>(n<0?"-":"")+"$"+Math.abs(n).toLocaleString("en-CA",{minimumFractionDigits:Math.abs(n)%1?2:0,maximumFractionDigits:2});
 const fmt2=n=>"$"+n.toLocaleString("en-CA",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -187,13 +199,13 @@ function weekStart(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate())
 function catName(id){const c=CATS.find(c=>c.id===id);return c?c.name:"Other"}
 function state(spent,budget){if(budget<=0)return spent>0?"bad":"";const r=spent/budget;return r>1?"bad":r>.85?"warn":""}
 function setBar(el,spent,budget){const s=state(spent,budget);el.className="bar"+(s?" "+s:"");el.firstElementChild.style.width=(budget>0?Math.min(100,spent/budget*100):(spent>0?100:0))+"%"}
-function mlabel(k){const [y,m]=k.split("-").map(Number);return new Date(y,m-1,1).toLocaleDateString("en-CA",{month:"long"})+(y!==new Date().getFullYear()?" "+y:"")}
+function mlabel(p){const a=pStart(p),b=pStart(p);b.setDate(b.getDate()+27);const o={month:"short",day:"numeric"};return a.toLocaleDateString("en-CA",o)+" – "+b.toLocaleDateString("en-CA",o)}
 
 function render(){
-  const now=new Date(), cur=monthKey(now), isCur=viewMonth===cur;
+  const now=new Date(), cur=periodOf(now), isCur=viewMonth===cur;
   $("monthTitle").textContent=mlabel(viewMonth);
-  $("nextM").disabled=viewMonth>=cur;
-  const mi=items.filter(i=>i.month===viewMonth);
+  $("nextM").disabled=viewMonth>=cur; $("prevM").disabled=viewMonth<=0;
+  const mi=items.filter(i=>i.date&&periodOf(parseDay(i.date))===viewMonth);
   const byCat={}; mi.forEach(i=>byCat[i.cat]=(byCat[i.cat]||0)+i.amt);
   const total=CATS.reduce((s,c)=>s+(budgets[c.id]||0),0);
   const spent=mi.reduce((s,i)=>s+i.amt,0);
@@ -203,9 +215,9 @@ function render(){
   setBar($("totalBar"),spent,total);
   $("totalSub").textContent=fmt2(spent)+" of "+fmt(total)+" spent";
   if(isCur){
-    const [y,m]=viewMonth.split("-").map(Number); const dim=new Date(y,m,0).getDate(); const d=now.getDate();
+    const dim=28; const d=dayNum(now)-dayNum(pStart(viewMonth))+1;
     const expected=total*d/dim; const daysLeft=dim-d+1;
-    $("pace").textContent=(spent<=expected?"On pace. ":"Ahead of pace by "+fmt(Math.round(spent-expected))+". ")+"About "+fmt(Math.max(0,Math.round(left/daysLeft)))+"/day for the next "+daysLeft+" days.";
+    $("pace").textContent="Week "+Math.ceil(d/7)+" of 4. "+(spent<=expected?"On pace. ":"Ahead of pace by "+fmt(Math.round(spent-expected))+". ")+"About "+fmt(Math.max(0,Math.round(left/daysLeft)))+"/day for the next "+daysLeft+" days.";
   } else $("pace").textContent=spent<=total?"Finished under budget.":"Finished "+fmt(Math.round(spent-total))+" over budget.";
   // week
   const ws=weekStart(now), wsK=dayKey(ws);
@@ -261,7 +273,7 @@ $("logForm").addEventListener("submit",async e=>{
   const date=$("date").value||dayKey(new Date());
   const rec={cat:logCat,amt,note:$("note").value.trim(),date,month:date.slice(0,7),ts:new Date().toISOString()};
   $("logScrim").hidden=true;
-  try{const id=await store.add(rec); if(rec.month!==viewMonth){viewMonth=rec.month;render()} toast("Logged "+fmt2(amt)+" · "+catName(logCat),id)}
+  try{const id=await store.add(rec); const rp=periodOf(parseDay(date)); if(rp!==viewMonth&&rp>=0){viewMonth=rp;render()} toast("Logged "+fmt2(amt)+" · "+catName(logCat),id)}
   catch(err){toast(err&&err.code==="quota_exceeded"?"Storage is full. Delete old entries to log more.":"Couldn't save that. Check your connection and try again.")}
 });
 // toast with undo
@@ -286,8 +298,15 @@ $("budForm").addEventListener("submit",async e=>{
   $("budScrim").hidden=true; budgets=nb; weekly=nw; render();
   try{await store.saveConfig({budgets:nb,weekly:nw}); toast("Budgets saved")}catch{toast("Couldn't save budgets. Try again.")}
 });
-$("prevM").addEventListener("click",()=>{const [y,m]=viewMonth.split("-").map(Number);viewMonth=monthKey(new Date(y,m-2,1));render()});
-$("nextM").addEventListener("click",()=>{const [y,m]=viewMonth.split("-").map(Number);viewMonth=monthKey(new Date(y,m,1));render()});
+$("exportCsv").addEventListener("click",()=>{
+  const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
+  const rows=[["date","category","amount","note"]].concat(items.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(i=>[i.date,catName(i.cat),i.amt.toFixed(2),i.note||""]));
+  const blob=new Blob([rows.map(r=>r.map(q).join(",")).join("\n")],{type:"text/csv"});
+  const u=URL.createObjectURL(blob); const l=document.createElement("a"); l.href=u; l.download="tap-budget-"+dayKey(new Date())+".csv"; document.body.appendChild(l); l.click(); l.remove(); setTimeout(()=>URL.revokeObjectURL(u),1000);
+  toast("Backup saved to your downloads");
+});
+$("prevM").addEventListener("click",()=>{if(viewMonth>0){viewMonth--;render()}});
+$("nextM").addEventListener("click",()=>{viewMonth++;render()});
 
 function applyConfig(c){if(!c)return; if(c.budgets)budgets=Object.assign({},budgets,c.budgets); if(typeof c.weekly==="number")weekly=c.weekly}
 
@@ -299,6 +318,7 @@ function localStore(){
   const save=()=>{try{localStorage.setItem(K,JSON.stringify(data))}catch{}};
   items=data.items||[]; applyConfig(data.config);
   $("sync").textContent="Saved on this device";
+  $("exportCsv").hidden=false;
   return{
     add:async r=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);data.items.push({id,...r});items=data.items;save();render();return id},
     remove:async id=>{data.items=data.items.filter(i=>i.id!==id);items=data.items;save();render()},
@@ -329,4 +349,5 @@ render();
 })();
 </script>
 
+<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{})}</script>
 </body></html>
